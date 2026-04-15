@@ -1,0 +1,74 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: wildlife_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wildlife_campus
+      POSTGRES_USER: wildlife_user
+      POSTGRES_PASSWORD: wildlife_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U wildlife_user -d wildlife_campus']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wildlife_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: wildlife_campus
+      DB_USER: wildlife_user
+      DB_PASSWORD: wildlife_pass
+      JWT_SECRET: campus_wildlife_jwt_secret_2026
+      JWT_EXPIRES_IN: 7d
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - '5002:5000'
+    volumes:
+      - uploads_data:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: wildlife_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '3000:80'
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: wildlife_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@campus.edu
+      PGADMIN_DEFAULT_PASSWORD: Admin@123
+    ports:
+      - '5050:80'
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  uploads_data:
