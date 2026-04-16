@@ -140,19 +140,18 @@ Frontend runs at: http://localhost:3000
 
 ---
 
-## Demo on Local Network
+## Live Demo (IBAB Network)
 
-Find your IP:
+The application is hosted on a MacBook Air M4 registered with the IBAB institute network.
 
-```bash
-ipconfig getifaddr en0
+> No setup required on the viewer's side — just open a browser.
+
+**Demo URL:**
+```
+http://10.52.92.90:3000
 ```
 
-Share with others on the same Wi-Fi:
-
-```
-http://<your-ip>:3000
-```
+Any device connected to the IBAB network can access the application directly in their browser. The entire stack (frontend, backend, database) runs inside Docker on the host machine.
 
 ---
 
