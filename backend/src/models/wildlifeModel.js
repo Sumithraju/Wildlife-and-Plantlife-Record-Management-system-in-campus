@@ -51,7 +51,7 @@ const WildlifeModel = {
   async findById(id) {
     const { rows } = await pool.query(
       `SELECT w.*, u.full_name AS observer_name,
-              json_agg(ri.image_url) FILTER (WHERE ri.id IS NOT NULL) AS images
+              COALESCE(json_agg(json_build_object('id', ri.id, 'url', ri.image_url)) FILTER (WHERE ri.id IS NOT NULL), '[]') AS images
        FROM wildlife_records w
        JOIN users u ON u.id = w.user_id
        LEFT JOIN record_images ri ON ri.record_id = w.id AND ri.record_type = 'wildlife'

@@ -1,6 +1,8 @@
 const { validationResult } = require('express-validator');
 const PlantModel = require('../models/plantModel');
 const pool = require('../config/db');
+const path = require('path');
+const fs = require('fs');
 
 const getAll = async (req, res) => {
   try {
@@ -63,6 +65,30 @@ const update = async (req, res) => {
     }
 
     const updated = await PlantModel.update(id, req.body);
+
+    // Remove deleted images
+    if (req.body.remove_image_ids) {
+      const ids = JSON.parse(req.body.remove_image_ids);
+      for (const imgId of ids) {
+        const { rows } = await pool.query('SELECT image_url FROM record_images WHERE id=$1', [imgId]);
+        if (rows[0]) {
+          const filePath = path.join(__dirname, '..', '..', rows[0].image_url);
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+          await pool.query('DELETE FROM record_images WHERE id=$1', [imgId]);
+        }
+      }
+    }
+
+    // Save new images
+    if (req.files && req.files.length) {
+      for (const file of req.files) {
+        await pool.query(
+          `INSERT INTO record_images (record_type, record_id, image_url) VALUES ('plant', $1, $2)`,
+          [id, `/uploads/${file.filename}`]
+        );
+      }
+    }
+
     return res.json(updated);
   } catch (err) {
     return res.status(500).json({ error: 'Server error' });

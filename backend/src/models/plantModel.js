@@ -50,7 +50,7 @@ const PlantModel = {
   async findById(id) {
     const { rows } = await pool.query(
       `SELECT p.*, u.full_name AS observer_name,
-              json_agg(ri.image_url) FILTER (WHERE ri.id IS NOT NULL) AS images
+              COALESCE(json_agg(json_build_object('id', ri.id, 'url', ri.image_url)) FILTER (WHERE ri.id IS NOT NULL), '[]') AS images
        FROM plant_records p
        JOIN users u ON u.id = p.user_id
        LEFT JOIN record_images ri ON ri.record_id = p.id AND ri.record_type = 'plant'

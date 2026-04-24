@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
+import ExportMenu from '../components/ExportMenu';
+import { exportCSV, exportExcel, exportPDF, exportImage } from '../utils/exportUtils';
 
 const s = {
   page: { padding: 24 },
@@ -30,6 +32,7 @@ export default function WildlifeList() {
   const [loading, setLoading] = useState(false);
   const { isResearcher, isAdmin, user } = useAuth();
   const navigate = useNavigate();
+  const tableRef = useRef();
   const limit = 10;
 
   const load = async () => {
@@ -59,11 +62,48 @@ export default function WildlifeList() {
 
   const totalPages = Math.ceil(total / limit);
 
+  const getAllRecords = async () => {
+    const params = new URLSearchParams({ limit: 1000 });
+    if (search) params.set('search', search);
+    if (category) params.set('category', category);
+    if (status) params.set('status', status);
+    const { data } = await api.get(`/wildlife?${params}`);
+    return (data.records || []).map(r => ({
+      'Species Name': r.species_name,
+      'Common Name': r.common_name || '',
+      'Category': r.category,
+      'Observation Date': r.observation_date?.slice(0, 10),
+      'Latitude': r.latitude,
+      'Longitude': r.longitude,
+      'Habitat': r.habitat || '',
+      'Notes': r.notes || '',
+      'Status': r.status,
+      'Observer': r.observer_name || '',
+    }));
+  };
+
+  const handleExport = async (type) => {
+    const rows = await getAllRecords();
+    const filename = 'wildlife_records';
+    const title = 'Wildlife Records — Campus Biodiversity Portal';
+    if (type === 'csv')   return exportCSV(rows, filename);
+    if (type === 'excel') return exportExcel(rows, filename, 'Wildlife');
+    if (type === 'pdf') {
+      const cols = ['Species Name', 'Common Name', 'Category', 'Date', 'Habitat', 'Status', 'Observer'];
+      const body = rows.map(r => [r['Species Name'], r['Common Name'], r['Category'], r['Observation Date'], r['Habitat'], r['Status'], r['Observer']]);
+      return exportPDF(cols, body, title, filename);
+    }
+    if (type === 'image') return exportImage(tableRef.current, filename);
+  };
+
   return (
     <div style={s.page}>
       <div style={s.header}>
         <h1 style={s.title}>Wildlife Records <span style={{ fontSize: 14, color: '#666', fontWeight: 400 }}>({total} total)</span></h1>
-        {isResearcher && <button style={s.addBtn} onClick={() => navigate('/wildlife/new')}>+ Add Record</button>}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <ExportMenu onExport={handleExport} />
+          {isResearcher && <button style={s.addBtn} onClick={() => navigate('/wildlife/new')}>+ Add Record</button>}
+        </div>
       </div>
 
       <div style={s.filters}>
@@ -84,7 +124,7 @@ export default function WildlifeList() {
       </div>
 
       {loading ? <p>Loading…</p> : (
-        <table style={s.table}>
+        <table ref={tableRef} style={s.table}>
           <thead>
             <tr>
               <th style={s.th}>Species Name</th>

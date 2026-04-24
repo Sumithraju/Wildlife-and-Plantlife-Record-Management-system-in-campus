@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
+import ExportMenu from '../components/ExportMenu';
+import { exportPDF, exportImage } from '../utils/exportUtils';
 
 const s = {
   page: { padding: 24 },
@@ -22,6 +24,7 @@ const s = {
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
   const [stats, setStats] = useState({ wByCategory: [], wTrend: [], pTrend: [], pending: [], totalW: 0, totalP: 0 });
+  const dashRef = useRef();
 
   useEffect(() => {
     const load = async () => {
@@ -48,6 +51,22 @@ export default function Dashboard() {
     load();
   }, []);
 
+  const handleExport = (type) => {
+    const title = 'Campus Biodiversity Portal — Summary Report';
+    if (type === 'pdf') {
+      const cols = ['Metric', 'Value'];
+      const body = [
+        ['Total Wildlife Records', stats.totalW],
+        ['Total Plant Records', stats.totalP],
+        ['Pending Approvals', stats.pending.length],
+        ['Wildlife Categories', stats.wByCategory.length],
+        ...stats.wByCategory.map(r => [`Wildlife — ${r.category}`, r.count]),
+      ];
+      return exportPDF(cols, body, title, 'dashboard_report');
+    }
+    if (type === 'image') return exportImage(dashRef.current, 'dashboard_report');
+  };
+
   const combinedTrend = stats.wTrend.map(w => ({
     month: w.month,
     Wildlife: parseInt(w.count),
@@ -56,10 +75,14 @@ export default function Dashboard() {
 
   return (
     <div style={s.page}>
-      <h1 style={s.title}>Dashboard — Campus Biodiversity Portal</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+        <h1 style={s.title}>Dashboard — Campus Biodiversity Portal</h1>
+        <ExportMenu onExport={handleExport} hideImage={false} pdfAndImageOnly />
+      </div>
       <p style={{ color: '#666', marginBottom: 20 }}>Welcome, <strong>{user?.full_name}</strong> · Role: {user?.role}</p>
 
       {/* Stat Cards */}
+      <div ref={dashRef}>
       <div style={s.grid}>
         <div style={s.statCard}>
           <div style={s.statNum}>{stats.totalW}</div>
@@ -109,6 +132,8 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      </div>{/* end dashRef */}
 
       {/* Pending Approvals Queue */}
       {isAdmin && stats.pending.length > 0 && (

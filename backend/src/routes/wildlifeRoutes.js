@@ -37,6 +37,7 @@ router.post('/',
 router.put('/:id',
   authenticate,
   authorise('researcher', 'admin'),
+  upload.array('images', 3),
   wildlifeValidation,
   ctrl.update
 );

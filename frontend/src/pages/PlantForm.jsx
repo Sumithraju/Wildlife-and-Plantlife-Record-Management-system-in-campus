@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/axios';
 
+const BACKEND = 'http://localhost:5001';
+
 const s = {
   page: { padding: 24, maxWidth: 700, margin: '0 auto' },
   title: { fontSize: 22, fontWeight: 700, color: '#1a5c2a', marginBottom: 24 },
@@ -15,6 +17,11 @@ const s = {
   btn: { padding: '12px 28px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14 },
   err: { background: '#f8d7da', color: '#58151c', border: '1px solid #dc3545', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16 },
   success: { background: '#d1e7dd', color: '#0a3622', border: '1px solid #198754', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16 },
+  imgRow: { display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 },
+  imgWrap: { position: 'relative', width: 100, height: 80 },
+  img: { width: 100, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' },
+  removeBtn: { position: 'absolute', top: -6, right: -6, background: '#dc3545', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', fontSize: 12, lineHeight: '20px', textAlign: 'center', padding: 0 },
+  newPreview: { width: 100, height: 80, objectFit: 'cover', borderRadius: 8, border: '2px dashed #1a5c2a' },
 };
 
 const EMPTY = { species_name:'', family:'', common_name:'', flowering_season:'', height_cm:'', iucn_status:'', observation_date:'', latitude:'', longitude:'', notes:'' };
@@ -24,7 +31,10 @@ export default function PlantForm() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const [form, setForm] = useState(EMPTY);
-  const [files, setFiles] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [removeIds, setRemoveIds] = useState([]);
+  const [newFiles, setNewFiles] = useState([]);
+  const [newPreviews, setNewPreviews] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,11 +54,23 @@ export default function PlantForm() {
           longitude: data.longitude || '',
           notes: data.notes || '',
         });
+        setExistingImages(data.images || []);
       });
     }
   }, [id]);
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
+
+  const handleFileChange = (e) => {
+    const files = [...e.target.files];
+    setNewFiles(files);
+    setNewPreviews(files.map(f => URL.createObjectURL(f)));
+  };
+
+  const removeExisting = (imgId) => {
+    setRemoveIds(ids => [...ids, imgId]);
+    setExistingImages(imgs => imgs.filter(img => img.id !== imgId));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,11 +81,12 @@ export default function PlantForm() {
     setLoading(true);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([k,v]) => v !== '' && fd.append(k, v));
-      files.forEach(f => fd.append('images', f));
+      Object.entries(form).forEach(([k, v]) => v !== '' && fd.append(k, v));
+      newFiles.forEach(f => fd.append('images', f));
+      if (removeIds.length) fd.append('remove_image_ids', JSON.stringify(removeIds));
 
       if (isEdit) {
-        await api.put(`/plants/${id}`, form);
+        await api.put(`/plants/${id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       } else {
         await api.post('/plants', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       }
@@ -128,13 +151,36 @@ export default function PlantForm() {
             <label style={s.label}>Field Notes</label>
             <textarea style={s.textarea} value={form.notes} onChange={set('notes')} />
           </div>
-          {!isEdit && (
-            <div style={s.full}>
-              <label style={s.label}>Photos (up to 3, max 5 MB each)</label>
-              <input type="file" accept="image/*" multiple onChange={(e) => setFiles([...e.target.files])} />
-            </div>
-          )}
+
+          <div style={s.full}>
+            <label style={s.label}>Photos (up to 3, max 5 MB each)</label>
+
+            {existingImages.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>Current photos — click × to remove</div>
+                <div style={s.imgRow}>
+                  {existingImages.map(img => (
+                    <div key={img.id} style={s.imgWrap}>
+                      <img src={`${BACKEND}${img.url}`} alt="existing" style={s.img} />
+                      <button type="button" style={s.removeBtn} onClick={() => removeExisting(img.id)}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <input type="file" accept="image/*" multiple onChange={handleFileChange} />
+
+            {newPreviews.length > 0 && (
+              <div style={s.imgRow}>
+                {newPreviews.map((src, i) => (
+                  <img key={i} src={src} alt={`new-${i}`} style={s.newPreview} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+
         <div style={s.actions}>
           <button type="submit" style={{ ...s.btn, background: '#1a5c2a', color: '#fff' }} disabled={loading}>
             {loading ? 'Saving…' : (isEdit ? 'Update Record' : 'Create Record')}

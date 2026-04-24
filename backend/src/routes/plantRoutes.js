@@ -31,6 +31,7 @@ router.post('/',
 router.put('/:id',
   authenticate,
   authorise('researcher', 'admin'),
+  upload.array('images', 3),
   plantValidation,
   ctrl.update
 );

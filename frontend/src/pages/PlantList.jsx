@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
+import ExportMenu from '../components/ExportMenu';
+import { exportCSV, exportExcel, exportPDF, exportImage } from '../utils/exportUtils';
 
 const s = {
   page: { padding: 24 },
@@ -30,6 +32,7 @@ export default function PlantList() {
   const [loading, setLoading] = useState(false);
   const { isResearcher, isAdmin, user } = useAuth();
   const navigate = useNavigate();
+  const tableRef = useRef();
   const limit = 10;
 
   const load = async () => {
@@ -55,11 +58,48 @@ export default function PlantList() {
 
   const totalPages = Math.ceil(total / limit);
 
+  const getAllRecords = async () => {
+    const params = new URLSearchParams({ limit: 1000 });
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+    const { data } = await api.get(`/plants?${params}`);
+    return (data.records || []).map(r => ({
+      'Species Name': r.species_name,
+      'Common Name': r.common_name || '',
+      'Family': r.family || '',
+      'IUCN Status': r.iucn_status || '',
+      'Flowering Season': r.flowering_season || '',
+      'Height (cm)': r.height_cm || '',
+      'Observation Date': r.observation_date?.slice(0, 10),
+      'Latitude': r.latitude,
+      'Longitude': r.longitude,
+      'Notes': r.notes || '',
+      'Status': r.status,
+    }));
+  };
+
+  const handleExport = async (type) => {
+    const rows = await getAllRecords();
+    const filename = 'plant_records';
+    const title = 'Plant Records — Campus Biodiversity Portal';
+    if (type === 'csv')   return exportCSV(rows, filename);
+    if (type === 'excel') return exportExcel(rows, filename, 'Plants');
+    if (type === 'pdf') {
+      const cols = ['Species Name', 'Common Name', 'Family', 'IUCN', 'Flowering', 'Date', 'Status'];
+      const body = rows.map(r => [r['Species Name'], r['Common Name'], r['Family'], r['IUCN Status'], r['Flowering Season'], r['Observation Date'], r['Status']]);
+      return exportPDF(cols, body, title, filename);
+    }
+    if (type === 'image') return exportImage(tableRef.current, filename);
+  };
+
   return (
     <div style={s.page}>
       <div style={s.header}>
         <h1 style={s.title}>Plant Records <span style={{ fontSize: 14, color: '#666', fontWeight: 400 }}>({total} total)</span></h1>
-        {isResearcher && <button style={s.addBtn} onClick={() => navigate('/plants/new')}>+ Add Record</button>}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <ExportMenu onExport={handleExport} />
+          {isResearcher && <button style={s.addBtn} onClick={() => navigate('/plants/new')}>+ Add Record</button>}
+        </div>
       </div>
 
       <div style={s.filters}>
@@ -74,7 +114,7 @@ export default function PlantList() {
       </div>
 
       {loading ? <p>Loading…</p> : (
-        <table style={s.table}>
+        <table ref={tableRef} style={s.table}>
           <thead>
             <tr>
               <th style={s.th}>Species Name</th>

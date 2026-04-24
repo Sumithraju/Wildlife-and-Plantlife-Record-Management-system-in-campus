@@ -88,8 +88,8 @@ export default function PlantDetail() {
           <div style={{ marginTop: 20 }}>
             <div style={s.fieldLabel}>Gallery</div>
             <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-              {record.images.map((url, i) => (
-                <img key={i} src={url} alt={`Photo ${i+1}`}
+              {record.images.map((img, i) => (
+                <img key={i} src={`http://localhost:5001${img.url}`} alt={`Photo ${i+1}`}
                   style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
               ))}
             </div>

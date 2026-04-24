@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import api from '../api/axios';
 import 'leaflet/dist/leaflet.css';
+import { exportImage } from '../utils/exportUtils';
 
 const s = {
   page: { padding: 24, height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' },
@@ -16,6 +17,7 @@ const s = {
 export default function MapView() {
   const [wildlife, setWildlife] = useState([]);
   const [plants, setPlants] = useState([]);
+  const mapRef = useRef();
 
   useEffect(() => {
     api.get('/wildlife?status=verified&limit=200').then(({ data }) => setWildlife(data.records || [])).catch(() => {});
@@ -27,7 +29,15 @@ export default function MapView() {
   return (
     <div style={s.page}>
       <div style={s.header}>
-        <h1 style={s.title}>Interactive Campus Map</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={s.title}>Interactive Campus Map</h1>
+          <button
+            onClick={() => exportImage(mapRef.current, 'campus_map')}
+            style={{ background: '#fff', color: '#1a5c2a', border: '1.5px solid #1a5c2a', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+          >
+            🖼️ Save Map as Image
+          </button>
+        </div>
         <div style={s.legend}>
           <span><span style={s.dot('#1a5c2a')} />Wildlife ({wildlife.length})</span>
           <span><span style={s.dot('#1565c0')} />Plants ({plants.length})</span>
@@ -35,7 +45,7 @@ export default function MapView() {
         </div>
       </div>
 
-      <div style={s.mapWrap}>
+      <div ref={mapRef} style={s.mapWrap}>
         <MapContainer center={center} zoom={16} style={{ height: '100%', width: '100%' }}>
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
