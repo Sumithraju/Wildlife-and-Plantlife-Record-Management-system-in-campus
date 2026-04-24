@@ -22,7 +22,7 @@ export default function MapView() {
     api.get('/plants?status=verified&limit=200').then(({ data }) => setPlants(data.records || [])).catch(() => {});
   }, []);
 
-  const center = [1.2956, 103.7720];
+  const center = [12.844, 77.658];
 
   return (
     <div style={s.page}>
