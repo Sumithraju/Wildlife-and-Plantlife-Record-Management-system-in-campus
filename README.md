@@ -112,10 +112,7 @@ Frontend runs at: http://localhost:3000
 | Role       | Email                    | Password      |
 |------------|--------------------------|---------------|
 | Admin      | admin@campus.edu         | Admin@123     |
-| Researcher | sarah.chen@campus.edu    | Research@123  |
-| Researcher | james.ok@campus.edu      | Research@123  |
-| Researcher | priya.s@campus.edu       | Research@123  |
-| Viewer     | viewer@campus.edu        | Viewer@123    |
+
 
 ---
 
