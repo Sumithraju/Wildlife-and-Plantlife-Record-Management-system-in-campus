@@ -156,7 +156,7 @@ export default function PlantList() {
           </tbody>
         </table>
       )}
-
+	
       {totalPages > 1 && (
         <div style={s.pagination}>
           <button style={s.pageBtn} onClick={() => setPage(p => p-1)} disabled={page === 1}>← Prev</button>
